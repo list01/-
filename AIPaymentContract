@@ -1,0 +1,90 @@
+pragma solidity ^0.8.0;
+
+contract AIStorage {
+    mapping (bytes32 => string) private _data;
+
+    //设置数据
+    function setData(bytes32 key, string memory value) public {
+        //确保输入参数的有效性
+        require(key != 0x0, "Key cannot be empty.");
+        require(bytes(value).length != 0, "Value cannot be empty.");
+        _data[key] = value;
+    }
+
+    //获取数据
+    function getData(bytes32 key) public view returns (string memory) {
+        //确保输入参数的有效性
+        require(key != 0x0, "Key cannot be empty.");
+        return _data[key];
+    }
+}
+
+contract AIPayment {
+    address private _owner;
+    uint private _price;
+    mapping (bytes32 => bool) private _paid;
+
+    constructor() {
+        _owner = msg.sender;
+        _price = 1 finney;
+    }
+
+    //设置价格
+    function setPrice(uint price) public {
+        //只有所有者才能设置价格
+        require(msg.sender == _owner, "Only the owner can set the price.");
+        _price = price;
+    }
+
+    //获取价格
+    function getPrice() public view returns (uint) {
+        return _price;
+    }
+
+    //付款以访问数据
+    function makePayment(bytes32 key) public payable {
+        //确保输入参数的有效性
+        require(key != 0x0, "Key cannot be empty.");
+        require(msg.value == _price, "You need to pay the exact price to access the data.");
+        require(!_paid[key], "You have already paid for this data.");
+
+        //标记已支付的数据
+        _paid[key] = true;
+
+        //创建AIStorage合约实例
+        AIStorage storageContract = new AIStorage();
+        
+        //存储数据
+        bytes32 hash = keccak256(abi.encodePacked(msg.sender, block.timestamp));
+        storageContract.setData(hash, msg.data);
+        
+        //发送以太币
+        (bool sent, ) = msg.sender.call{value: msg.value}("");
+        require(sent, "Failed to send Ether.");
+
+        //如果数据长度大于0，调用sendBTC函数向调用者的地址发送BTC
+        string memory data = storageContract.getData(hash);
+        if (bytes(data).length > 0) {
+            sendBTC(msg.sender, _price);
+        }
+    }
+
+    //发送BTC
+    function sendBTC(address payable addressTo, uint amount) private {
+        //确保输入参数的有效性
+        require(addressTo != address(0), "Invalid address.");
+        require(amount > 0, "Amount must be greater than zero.");
+
+        //使用RPC连接发送BTC
+        //...
+    }
+
+    //获取余额
+    function getBalance(address addressToCheck) public view returns (uint) {
+        //确保输入参数的有效性
+        require(addressToCheck != address(0), "Invalid address.");
+
+        //使用RPC连接获取余额
+        //...
+    }
+}
