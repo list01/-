@@ -1,0 +1,54 @@
+import numpy as np
+from tensorflow.keras import Input, Model, layers, optimizers, regularizers
+
+class HumanModel:
+    def __init__(self, knowledge):
+        self.knowledge = knowledge
+
+    def generate_ideas(self):
+        return self.knowledge + np.random.normal(0, 0.1, size=self.knowledge.shape)
+
+class AiModel:
+    def __init__(self, input_dim, output_dim, hidden_dim=128, lr=0.001, discount_factor=0.99):
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.hidden_dim = hidden_dim
+        self.lr = lr
+        self.discount_factor = discount_factor
+
+        self.model = self.build_model()
+
+    def build_model(self):
+        inputs = Input(shape=(self.input_dim,))
+        x = layers.Dense(self.hidden_dim, activation='relu', kernel_regularizer=regularizers.l2(0.01))(inputs)
+        x = layers.Dense(self.hidden_dim, activation='relu', kernel_regularizer=regularizers.l2(0.01))(x)
+        outputs = layers.Dense(self.output_dim, activation='softmax', kernel_regularizer=regularizers.l2(0.01))(x)
+
+        model = Model(inputs=inputs, outputs=outputs)
+        optimizer = optimizers.AdamW(learning_rate=self.lr)
+        model.compile(loss='categorical_crossentropy', optimizer=optimizer)
+        return model
+
+    def generate_ideas(self, knowledge):
+        state = np.expand_dims(knowledge, axis=0)
+        probs = self.model.predict(state)[0]
+        return knowledge + np.random.normal(0, 0.1, size=self.input_dim), probs
+
+    def train(self, states, actions, rewards, next_states, dones):
+        targets = rewards + self.discount_factor * np.max(self.model.predict(next_states), axis=1) * (1 - dones)
+        target_vec = self.model.predict(states)
+        indices = np.arange(len(target_vec))
+        target_vec[indices, actions] = targets
+        self.model.train_on_batch(states, target_vec)
+
+class HybridModel:
+    def __init__(self, human_model, ai_model, lambda_=0.5):
+        self.human_model = human_model
+        self.ai_model = ai_model
+        self.lambda_ = lambda_
+
+    def generate_ideas(self, knowledge):
+        human_ideas = self.human_model.generate_ideas()
+        ai_ideas, ai_probs = self.ai_model.generate_ideas(knowledge)
+
+        hybrid_
